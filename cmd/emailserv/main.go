@@ -10,14 +10,18 @@ import (
 )
 
 func main() {
+	var config configuration
+	config.init()
+	config.parse()
+
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
 	defer logger.Sync()
 
-	ac := emailclient.NewAmazonClient(logger.Named("aws"))
-	sc, _ := emailclient.NewSendgridClient(logger.Named("sendgrid"))
+	ac := emailclient.NewAmazonClient(logger.Named("aws"), config.amazon.key, config.amazon.secret)
+	sc, _ := emailclient.NewSendgridClient(logger.Named("sendgrid"), config.sendgrid.key)
 	em := &emailmanager.EmailManager{
 		Logger:       logger.Named("email-manager"),
 		EmailClients: []emailclient.EmailClient{sc, ac},

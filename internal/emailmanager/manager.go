@@ -3,9 +3,8 @@ package emailmanager
 import (
 	"context"
 
-	"go.uber.org/zap"
-
 	"github.com/mikolajb/emailserv/internal/emailclient"
+	"go.uber.org/zap"
 )
 
 type EmailManager struct {

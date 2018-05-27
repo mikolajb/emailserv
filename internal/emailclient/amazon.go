@@ -17,7 +17,7 @@ type AmazonClient struct {
 	sesClient *ses.SES
 }
 
-func NewAmazonClient(logger *zap.Logger) *AmazonClient {
+func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) *AmazonClient {
 	return &AmazonClient{
 		logger: logger,
 		sesClient: ses.New(session.Must(session.NewSession(
@@ -26,8 +26,8 @@ func NewAmazonClient(logger *zap.Logger) *AmazonClient {
 					logger.Debug("abc", zap.Reflect("x", args))
 				}),
 				Credentials: credentials.NewStaticCredentials(
-					"",
-					"",
+					keyID,
+					secretKey,
 					"",
 				),
 				Region: aws.String("eu-west-1"),

@@ -14,10 +14,10 @@ type SendgridClient struct {
 	sendgridClient *sendgrid.Client
 }
 
-func NewSendgridClient(logger *zap.Logger) (*SendgridClient, error) {
+func NewSendgridClient(logger *zap.Logger, key string) (*SendgridClient, error) {
 	return &SendgridClient{
 		logger:         logger,
-		sendgridClient: sendgrid.NewSendClient(""),
+		sendgridClient: sendgrid.NewSendClient(key),
 	}, nil
 }
 

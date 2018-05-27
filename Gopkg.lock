@@ -41,6 +41,12 @@
   version = "v1.36.0"
 
 [[projects]]
+  name = "github.com/golang/mock"
+  packages = ["gomock"]
+  revision = "c34cdb4725f4c3844d095133c6e40e448b86589b"
+  version = "v1.1.1"
+
+[[projects]]
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   revision = "0b12d6b5"
@@ -80,14 +86,22 @@
     "internal/bufferpool",
     "internal/color",
     "internal/exit",
-    "zapcore"
+    "internal/ztest",
+    "zapcore",
+    "zaptest"
   ]
   revision = "eeedf312bc6c57391d84767a4cd413f02a917974"
   version = "v1.8.0"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "dfa909b99c79129e1100513e5cd36307665e5723"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ac5bedf8d223fb8492f0cdf4ae72458bb81a2d8755eab7d0c3d00d24ad05fca1"
+  inputs-digest = "ec4f34158dd192e2bd51e52119f8c2f35f7fdf845b33580e236f0c3a33ab23ca"
   solver-name = "gps-cdcl"
   solver-version = 1
