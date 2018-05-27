@@ -6,6 +6,7 @@ type EmailOption func(*emailOptions)
 
 type EmailClient interface {
 	Send(context.Context, string, string, string, ...EmailOption) error
+	ProviderName() string
 }
 
 type emailOptions struct {

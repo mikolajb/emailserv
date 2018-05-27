@@ -46,6 +46,21 @@
   revision = "0b12d6b5"
 
 [[projects]]
+  name = "github.com/sendgrid/rest"
+  packages = ["."]
+  revision = "306b9bef57dc36f3435ccfcc08fe6ae2c6920344"
+  version = "v2.4.1"
+
+[[projects]]
+  name = "github.com/sendgrid/sendgrid-go"
+  packages = [
+    ".",
+    "helpers/mail"
+  ]
+  revision = "8caf17aa96b4a98bae8bd216878dd50ff12897b5"
+  version = "v3.4.1"
+
+[[projects]]
   name = "go.uber.org/atomic"
   packages = ["."]
   revision = "1ea20fb1cbb1cc08cbd0d913a96dead89aa18289"
@@ -73,6 +88,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2a496bfb5cbf46699541680197888b2a11fe4a7e60c195d0db7703982a852046"
+  inputs-digest = "ac5bedf8d223fb8492f0cdf4ae72458bb81a2d8755eab7d0c3d00d24ad05fca1"
   solver-name = "gps-cdcl"
   solver-version = 1

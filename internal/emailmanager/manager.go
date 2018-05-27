@@ -23,9 +23,10 @@ func (em *EmailManager) Send(ctx context.Context, to, from, subject string, opts
 	for _, ec := range em.EmailClients {
 		err := ec.Send(ctx, to, from, subject, opts...)
 		if err == nil {
+			logger.Debug("sent", zap.String("email_provider", ec.ProviderName()))
 			break
 		}
-		logger.Error("email client error", zap.Error(err))
+		logger.Error("email client error", zap.Error(err), zap.String("email_provider", ec.ProviderName()))
 	}
 	return nil
 }

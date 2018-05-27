@@ -17,9 +17,10 @@ func main() {
 	defer logger.Sync()
 
 	ac := emailclient.NewAmazonClient(logger.Named("aws"))
+	sc, _ := emailclient.NewSendgridClient(logger.Named("sendgrid"))
 	em := &emailmanager.EmailManager{
 		Logger:       logger.Named("email-manager"),
-		EmailClients: []emailclient.EmailClient{ac},
+		EmailClients: []emailclient.EmailClient{sc, ac},
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()

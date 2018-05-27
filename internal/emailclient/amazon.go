@@ -36,6 +36,10 @@ func NewAmazonClient(logger *zap.Logger) *AmazonClient {
 	}
 }
 
+func (ac *AmazonClient) ProviderName() string {
+	return "aws"
+}
+
 func (ac *AmazonClient) Send(ctx context.Context, to, from, subject string, opts ...EmailOption) error {
 	options := &emailOptions{}
 	for _, fn := range opts {
