@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"net/http"
 	"time"
 
 	"github.com/mikolajb/emailserv/internal/emailclient"
@@ -20,13 +20,27 @@ func main() {
 	}
 	defer logger.Sync()
 
-	ac := emailclient.NewAmazonClient(logger.Named("aws"), config.amazon.key, config.amazon.secret)
-	sc, _ := emailclient.NewSendgridClient(logger.Named("sendgrid"), config.sendgrid.key)
+	ac := emailclient.NewAmazonClient(
+		logger.Named("aws"),
+		config.amazon.key,
+		config.amazon.secret,
+	)
+	sc, _ := emailclient.NewSendgridClient(
+		logger.Named("sendgrid"),
+		config.sendgrid.key,
+	)
 	em := &emailmanager.EmailManager{
 		Logger:       logger.Named("email-manager"),
 		EmailClients: []emailclient.EmailClient{sc, ac},
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-	em.Send(ctx, "mikolajb@gmail.com", "m@mikolajb.xyz", "test", emailclient.WithBody("abc"))
+
+	handler := httpHandler{
+		logger:       logger.Named("http-handler"),
+		emailManager: em,
+		timeout:      time.Second,
+	}
+
+	http.Handle("/email", handler)
+
+	http.ListenAndServe(":8080", nil)
 }
