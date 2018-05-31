@@ -2,14 +2,17 @@ package emailmanager
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/mikolajb/emailserv/internal/emailclient"
 	"go.uber.org/zap"
 )
 
 type EmailManager struct {
-	Logger       *zap.Logger
-	EmailClients []emailclient.EmailClient
+	Logger        *zap.Logger
+	EmailClients  []emailclient.EmailClient
+	ClientTimeout time.Duration
 }
 
 func (em *EmailManager) Send(ctx context.Context, to, from, subject string, opts ...emailclient.EmailOption) error {
@@ -19,13 +22,37 @@ func (em *EmailManager) Send(ctx context.Context, to, from, subject string, opts
 		zap.String("subject", subject),
 	)
 
+	isSent := false
+
+LoopOverClients:
 	for _, ec := range em.EmailClients {
-		err := ec.Send(ctx, to, from, subject, opts...)
-		if err == nil {
-			logger.Debug("sent", zap.String("email_provider", ec.ProviderName()))
-			break
+		iLogger := logger.With(zap.String("email_provider", ec.ProviderName()))
+		clientCtx, cancel := context.WithTimeout(ctx, em.ClientTimeout)
+		defer cancel()
+		done := make(chan error)
+
+		go func() {
+			done <- ec.Send(clientCtx, to, from, subject, opts...)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				iLogger.Error("email client error", zap.Error(err))
+			} else {
+				iLogger.Debug("sent")
+				isSent = true
+				break LoopOverClients
+			}
+		case <-clientCtx.Done():
+			logger.Error("client timeout")
 		}
-		logger.Error("email client error", zap.Error(err), zap.String("email_provider", ec.ProviderName()))
 	}
+
+	if !isSent {
+		logger.Error("sending failed for all clients")
+		return errors.New("sending emails failed for all clients")
+	}
+
 	return nil
 }

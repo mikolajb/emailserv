@@ -30,14 +30,14 @@ func main() {
 		config.sendgrid.key,
 	)
 	em := &emailmanager.EmailManager{
-		Logger:       logger.Named("email-manager"),
-		EmailClients: []emailclient.EmailClient{sc, ac},
+		Logger:        logger.Named("email-manager"),
+		EmailClients:  []emailclient.EmailClient{sc, ac},
+		ClientTimeout: 5 * time.Second,
 	}
 
 	handler := httpHandler{
 		logger:       logger.Named("http-handler"),
 		emailManager: em,
-		timeout:      time.Second,
 	}
 
 	http.Handle("/email", handler)

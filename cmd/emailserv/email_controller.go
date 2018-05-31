@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"regexp"
-	"time"
 
 	"github.com/mikolajb/emailserv/internal/emailmanager"
 	"go.uber.org/zap"
@@ -23,20 +21,22 @@ type Message struct {
 	Body         string   `json:"body"`
 }
 
+type Response struct {
+	Message string `json:"message"`
+	Error   bool
+}
+
 type httpHandler struct {
 	logger       *zap.Logger
 	emailManager *emailmanager.EmailManager
-	timeout      time.Duration
 }
 
 func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	ctx := r.Context()
-	ctx, cancel := context.WithTimeout(ctx, h.timeout)
-	defer cancel()
 
 	var message Message
 
@@ -45,10 +45,20 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("error while decoding message", zap.Error(err))
 	}
 
+	response := &Response{}
+
+	validationErrors := validate(&message)
+	if len(validationErrors) > 0 {
+		response.Error = true
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
 	err = h.emailManager.Send(ctx, message.Recipients[0], message.Sender, message.Subject)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		h.logger.Error("send error", zap.Error(err))
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 type validationError struct {
