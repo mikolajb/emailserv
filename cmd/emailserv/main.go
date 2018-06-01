@@ -1,7 +1,11 @@
 package main
 
 import (
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/mikolajb/emailserv/internal/emailclient"
@@ -14,11 +18,21 @@ func main() {
 	config.init()
 	config.parse()
 
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
 	defer logger.Sync()
+
+	go func() {
+		sig := <-sigs
+		logger.Info("signal received, closing service", zap.Stringer("signal", sig))
+		done <- true
+	}()
 
 	ac := emailclient.NewAmazonClient(
 		logger.Named("aws"),
@@ -32,7 +46,7 @@ func main() {
 	em := &emailmanager.EmailManager{
 		Logger:        logger.Named("email-manager"),
 		EmailClients:  []emailclient.EmailClient{sc, ac},
-		ClientTimeout: 5 * time.Second,
+		ClientTimeout: time.Duration(config.clientTimeout) * time.Millisecond,
 	}
 
 	handler := httpHandler{
@@ -42,5 +56,23 @@ func main() {
 
 	http.Handle("/email", handler)
 
-	http.ListenAndServe(":8080", nil)
+	logger.Info("starting")
+
+	listener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		logger.Fatal("cannot start listener", zap.Error(err))
+	}
+	go func() {
+		err = http.Serve(listener, nil)
+		if err != nil {
+			logger.Debug("http serve error (it always returns an error)", zap.Error(err))
+		}
+	}()
+
+	<-done
+	err = listener.Close()
+	if err != nil {
+		logger.Error("cannot close listener", zap.Error(err))
+	}
+	logger.Info("bye")
 }
