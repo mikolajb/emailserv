@@ -40,33 +40,29 @@ func (ac *AmazonClient) ProviderName() string {
 	return "aws"
 }
 
-func (ac *AmazonClient) Send(ctx context.Context, to, from, subject string, opts ...EmailOption) error {
+func (ac *AmazonClient) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...EmailOption) error {
 	options := &emailOptions{}
 	for _, fn := range opts {
 		fn(options)
 	}
 	logger := ac.logger.With(
-		zap.Strings("to", append(options.recipients, to)),
+		zap.String("sender", sender),
+		zap.Strings("recipients", recipients),
 		zap.Strings("cc", options.ccRecipients),
-		zap.String("from", from),
+		zap.Strings("bcc", options.bccRecipients),
 		zap.String("subject", subject),
 	)
 
 	logger.Debug("sending a message")
-	recipients := []*string{aws.String(to)}
-	ccRecipients := []*string{}
-
-	for _, r := range options.recipients {
-		recipients = append(recipients, aws.String(r))
-	}
-	for _, r := range options.ccRecipients {
-		ccRecipients = append(ccRecipients, aws.String(r))
-	}
+	toAddresses := aws.StringSlice(recipients)
+	ccAddresses := aws.StringSlice(options.ccRecipients)
+	bccAddresses := aws.StringSlice(options.bccRecipients)
 
 	input := &ses.SendEmailInput{
 		Destination: &ses.Destination{
-			ToAddresses: recipients,
-			CcAddresses: ccRecipients,
+			ToAddresses:  toAddresses,
+			CcAddresses:  ccAddresses,
+			BccAddresses: bccAddresses,
 		},
 		Message: &ses.Message{
 			Body: &ses.Body{
@@ -80,7 +76,7 @@ func (ac *AmazonClient) Send(ctx context.Context, to, from, subject string, opts
 				Data:    aws.String(subject),
 			},
 		},
-		Source: aws.String(from),
+		Source: aws.String(sender),
 	}
 
 	result, err := ac.sesClient.SendEmailWithContext(ctx, input)

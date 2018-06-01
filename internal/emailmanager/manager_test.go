@@ -12,7 +12,6 @@ import (
 )
 
 func TestEmailManager_Send(t *testing.T) {
-
 	clients := []emailclient.EmailClient{nil, nil}
 
 	em := EmailManager{
@@ -47,19 +46,19 @@ func TestEmailManager_Send(t *testing.T) {
 
 			client1.EXPECT().ProviderName().Return("mock_client1")
 			client2.EXPECT().ProviderName().Return("mock_client2")
-			firstClientCall := client1.EXPECT().Send(gomock.Any(), "a", "b", "c")
+			firstClientCall := client1.EXPECT().Send(gomock.Any(), "a", []string{"b"}, "c")
 			firstClientCall.Return(errors.New("some error"))
 
-			secondClientCall := client2.EXPECT().Send(gomock.Any(), "a", "b", "c")
+			secondClientCall := client2.EXPECT().Send(gomock.Any(), "a", []string{"b"}, "c")
 			secondClientCall.After(firstClientCall)
-			secondClientCall.DoAndReturn(func(ctx context.Context, recipient, sender, subject string) error {
+			secondClientCall.DoAndReturn(func(ctx context.Context, sender string, recipients []string, subject string) error {
 				if c.delay != 0 {
 					time.Sleep(c.delay)
 				}
 				return nil
 			})
 
-			err := em.Send(context.TODO(), "a", "b", "c")
+			err := em.Send(context.TODO(), "a", []string{"b"}, "c")
 			if c.err != nil && err != nil {
 				if c.err.Error() != err.Error() {
 					t.Errorf("expected error '%s' but got '%s'", c.err.Error(), err.Error())

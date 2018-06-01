@@ -25,19 +25,38 @@ func (sc *SendgridClient) ProviderName() string {
 	return "sendgrid"
 }
 
-func (sc *SendgridClient) Send(ctx context.Context, to, from, subject string, opts ...EmailOption) error {
+func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...EmailOption) error {
+	options := &emailOptions{}
+	for _, fn := range opts {
+		fn(options)
+	}
 	logger := sc.logger.With(
-		zap.String("to", to),
-		zap.String("from", from),
+		zap.String("sender", sender),
+		zap.Strings("recipients", recipients),
+		zap.Strings("cc", options.ccRecipients),
+		zap.Strings("bcc", options.bccRecipients),
 		zap.String("subject", subject),
 	)
-	message := mail.NewSingleEmail(
-		mail.NewEmail("", from),
-		subject,
-		mail.NewEmail("", to),
-		" ",
-		" ",
-	)
+
+	if len(recipients) == 0 {
+		return errors.New("no recipients")
+	}
+
+	message := mail.NewV3Mail()
+	message.From = mail.NewEmail("", sender)
+	message.Subject = subject
+	message.AddContent(mail.NewContent("plain/text", options.body))
+
+	personalization := mail.NewPersonalization()
+	personalization.AddTos(stringsToEmails(recipients...)...)
+	if len(options.ccRecipients) > 0 {
+		personalization.AddCCs(stringsToEmails(options.ccRecipients...)...)
+	}
+	if len(options.bccRecipients) > 0 {
+		personalization.AddBCCs(stringsToEmails(options.bccRecipients...)...)
+	}
+	message.AddPersonalizations(personalization)
+
 	response, err := sc.sendgridClient.Send(message)
 	if err != nil {
 		logger.Error("sending error", zap.Error(err))
@@ -53,4 +72,14 @@ func (sc *SendgridClient) Send(ctx context.Context, to, from, subject string, op
 	}
 
 	return nil
+}
+
+func stringsToEmails(addresses ...string) []*mail.Email {
+	emails := make([]*mail.Email, len(addresses))
+	for _, e := range addresses {
+		emails = append(emails, mail.NewEmail(
+			"", e,
+		))
+	}
+	return emails
 }

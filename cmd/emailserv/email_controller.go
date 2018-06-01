@@ -14,11 +14,12 @@ const (
 )
 
 type Message struct {
-	Sender       string   `json:"sender"`
-	Recipients   []string `json:"recipients"`
-	CCRecipients []string `json:"cc_recipients"`
-	Subject      string   `json:"subject"`
-	Body         string   `json:"body"`
+	Sender        string   `json:"sender"`
+	Recipients    []string `json:"recipients"`
+	CCRecipients  []string `json:"cc_recipients"`
+	BCCRecipients []string `json:"bcc_recipients"`
+	Subject       string   `json:"subject"`
+	Body          string   `json:"body"`
 }
 
 type Response struct {
@@ -53,7 +54,7 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	err = h.emailManager.Send(ctx, message.Recipients[0], message.Sender, message.Subject)
+	err = h.emailManager.Send(ctx, message.Sender, message.Recipients, message.Subject)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.logger.Error("send error", zap.Error(err))

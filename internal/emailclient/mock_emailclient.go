@@ -34,7 +34,7 @@ func (m *MockEmailClient) EXPECT() *MockEmailClientMockRecorder {
 }
 
 // Send mocks base method
-func (m *MockEmailClient) Send(arg0 context.Context, arg1, arg2, arg3 string, arg4 ...EmailOption) error {
+func (m *MockEmailClient) Send(arg0 context.Context, arg1 string, arg2 []string, arg3 string, arg4 ...EmailOption) error {
 	varargs := []interface{}{arg0, arg1, arg2, arg3}
 	for _, a := range arg4 {
 		varargs = append(varargs, a)

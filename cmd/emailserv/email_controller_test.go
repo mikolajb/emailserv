@@ -16,14 +16,15 @@ import (
 )
 
 func TestEmailControllerHandler(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
+	sender := "sender@example.com"
+	recipients := []string{"recipient@example.com"}
+	subject := "subject"
 
-	client1 := emailclient.NewMockEmailClient(mockCtrl)
-	client1.EXPECT().ProviderName().Return("mock_client1")
+	clients := []emailclient.EmailClient{nil}
+
 	em := &emailmanager.EmailManager{
 		Logger:        zaptest.NewLogger(t),
-		EmailClients:  []emailclient.EmailClient{client1},
+		EmailClients:  clients,
 		ClientTimeout: 100 * time.Millisecond,
 	}
 
@@ -40,9 +41,9 @@ func TestEmailControllerHandler(t *testing.T) {
 	}{
 		"ok": {
 			message: &Message{
-				Sender:     "sender@example.com",
-				Recipients: []string{"recipient@example.com"},
-				Subject:    "subject",
+				Sender:     sender,
+				Recipients: recipients,
+				Subject:    subject,
 			},
 			method:     "POST",
 			path:       "/email",
@@ -52,15 +53,20 @@ func TestEmailControllerHandler(t *testing.T) {
 
 	for hint, c := range cases {
 		t.Run(hint, func(t *testing.T) {
-			b := &bytes.Buffer{}
-			json.NewEncoder(b).Encode(c.message)
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
 
+			client1 := emailclient.NewMockEmailClient(mockCtrl)
+			client1.EXPECT().ProviderName().Return("mock_client1")
 			client1.EXPECT().
-				Send(gomock.Any(), "recipient@example.com", "sender@example.com", "subject").
-				DoAndReturn(func(ctx context.Context, recipiant, sender, subject string) error {
+				Send(gomock.Any(), sender, recipients, subject).
+				DoAndReturn(func(ctx context.Context, sender string, recipiants []string, subject string) error {
 					return nil
 				}).Times(1)
+			clients[0] = client1
 
+			b := &bytes.Buffer{}
+			json.NewEncoder(b).Encode(c.message)
 			req, err := http.NewRequest(c.method, c.path, b)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())

@@ -5,25 +5,25 @@ import "context"
 type EmailOption func(*emailOptions)
 
 type EmailClient interface {
-	Send(context.Context, string, string, string, ...EmailOption) error
+	Send(context.Context, string, []string, string, ...EmailOption) error
 	ProviderName() string
 }
 
 type emailOptions struct {
-	recipients   []string
-	ccRecipients []string
-	body         string
-}
-
-func WithRecipient(recipient string) EmailOption {
-	return func(o *emailOptions) {
-		o.recipients = append(o.recipients, recipient)
-	}
+	ccRecipients  []string
+	bccRecipients []string
+	body          string
 }
 
 func WithCCRecipient(recipient string) EmailOption {
 	return func(o *emailOptions) {
 		o.ccRecipients = append(o.ccRecipients, recipient)
+	}
+}
+
+func WithBCCRecipient(recipient string) EmailOption {
+	return func(o *emailOptions) {
+		o.bccRecipients = append(o.bccRecipients, recipient)
 	}
 }
 

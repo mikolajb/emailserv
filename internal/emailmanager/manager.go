@@ -15,10 +15,10 @@ type EmailManager struct {
 	ClientTimeout time.Duration
 }
 
-func (em *EmailManager) Send(ctx context.Context, to, from, subject string, opts ...emailclient.EmailOption) error {
+func (em *EmailManager) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...emailclient.EmailOption) error {
 	logger := em.Logger.With(
-		zap.String("to", to),
-		zap.String("from", from),
+		zap.String("sender", sender),
+		zap.Strings("recipients", recipients),
 		zap.String("subject", subject),
 	)
 
@@ -32,7 +32,7 @@ LoopOverClients:
 		done := make(chan error)
 
 		go func() {
-			done <- ec.Send(clientCtx, to, from, subject, opts...)
+			done <- ec.Send(clientCtx, sender, recipients, subject, opts...)
 		}()
 
 		select {
