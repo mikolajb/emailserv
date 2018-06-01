@@ -58,7 +58,7 @@ func main() {
 
 	logger.Info("starting")
 
-	listener, err := net.Listen("tcp", ":8080")
+	listener, err := net.Listen("tcp", ":"+config.port)
 	if err != nil {
 		logger.Fatal("cannot start listener", zap.Error(err))
 	}

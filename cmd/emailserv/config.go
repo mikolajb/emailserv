@@ -3,14 +3,15 @@ package main
 import "flag"
 
 type configuration struct {
-	amazon struct {
+	port          string
+	clientTimeout int
+	amazon        struct {
 		key    string
 		secret string
 	}
 	sendgrid struct {
 		key string
 	}
-	clientTimeout int
 }
 
 func (c *configuration) init() {
@@ -18,10 +19,11 @@ func (c *configuration) init() {
 		*c = configuration{}
 	}
 
-	flag.StringVar(&c.amazon.key, "amazon.key", "", "amazon access key id")
-	flag.StringVar(&c.amazon.secret, "amazon.secret", "", "amazon secret access key")
-	flag.StringVar(&c.sendgrid.key, "sendgrid.key", "", "sendgrid key")
-	flag.IntVar(&c.clientTimeout, "client_timeout", 5000, "acceptable client work time in milliseconds")
+	flag.StringVar(&c.amazon.key, "amazon.key", "", "Amazon access key id.")
+	flag.StringVar(&c.amazon.secret, "amazon.secret", "", "Amazon secret access key.")
+	flag.StringVar(&c.sendgrid.key, "sendgrid.key", "", "Sendgrid key.")
+	flag.IntVar(&c.clientTimeout, "client_timeout", 5000, "Acceptable client work time in milliseconds.")
+	flag.StringVar(&c.port, "port", "8080", "Port.")
 }
 
 func (c *configuration) parse() {
