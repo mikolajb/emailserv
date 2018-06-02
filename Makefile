@@ -4,7 +4,7 @@ LDFLAGS = -X 'main.version=$(VERSION)'
 PACKAGE=github.com/mikolajb/${SERVICE}
 
 test:
-	cd ${GOPATH}/src/${PACKAGE} && ./scripts/test.sh
+	go test ./... -race -coverprofile=coverage.out -covermode=atomic | tee test-results.out
 	go tool cover -func=coverage.out | tail -n 1
 
 get:

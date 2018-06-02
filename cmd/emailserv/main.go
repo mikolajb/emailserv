@@ -11,6 +11,7 @@ import (
 	"github.com/mikolajb/emailserv/internal/emailclient"
 	"github.com/mikolajb/emailserv/internal/emailmanager"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func main() {
@@ -56,6 +57,7 @@ func main() {
 		}
 		clients = append(clients, ac, sc)
 	}
+
 	em := &emailmanager.EmailManager{
 		Logger:        logger.Named("email-manager"),
 		EmailClients:  clients,
@@ -63,8 +65,9 @@ func main() {
 	}
 
 	handler := httpHandler{
-		logger:       logger.Named("http-handler"),
-		emailManager: em,
+		logger:             logger.Named("http-handler"),
+		emailManager:       em,
+		authorizationToken: config.token,
 	}
 
 	http.Handle("/email", handler)
@@ -80,7 +83,13 @@ func main() {
 		}
 	}()
 
-	logger.Info("listening", zap.Stringer("address", listener.Addr()))
+	var startGreetingFields []zapcore.Field
+	for _, c := range clients {
+		startGreetingFields = append(startGreetingFields, zap.String("client", c.ProviderName()))
+	}
+	startGreetingFields = append(startGreetingFields, zap.Stringer("address", listener.Addr()))
+
+	logger.Info("listening", startGreetingFields...)
 	<-done
 	err = listener.Close()
 	if err != nil {

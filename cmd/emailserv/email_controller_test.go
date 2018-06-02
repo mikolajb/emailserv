@@ -28,9 +28,12 @@ func TestEmailControllerHandler(t *testing.T) {
 		ClientTimeout: 100 * time.Millisecond,
 	}
 
+	token := "abc"
+
 	handler := httpHandler{
-		logger:       zaptest.NewLogger(t),
-		emailManager: em,
+		logger:             zaptest.NewLogger(t),
+		emailManager:       em,
+		authorizationToken: token,
 	}
 
 	cases := map[string]struct {
@@ -38,6 +41,7 @@ func TestEmailControllerHandler(t *testing.T) {
 		method     string
 		path       string
 		returnCode int
+		token      string
 	}{
 		"ok": {
 			message: &Message{
@@ -47,7 +51,19 @@ func TestEmailControllerHandler(t *testing.T) {
 			},
 			method:     "POST",
 			path:       "/email",
-			returnCode: http.StatusOK,
+			returnCode: http.StatusCreated,
+			token:      token,
+		},
+		"unauthorized": {
+			message: &Message{
+				Sender:     sender,
+				Recipients: recipients,
+				Subject:    subject,
+			},
+			method:     "POST",
+			path:       "/email",
+			returnCode: http.StatusUnauthorized,
+			token:      "xyz",
 		},
 	}
 
@@ -57,17 +73,20 @@ func TestEmailControllerHandler(t *testing.T) {
 			defer mockCtrl.Finish()
 
 			client1 := emailclient.NewMockEmailClient(mockCtrl)
-			client1.EXPECT().ProviderName().Return("mock_client1")
-			client1.EXPECT().
-				Send(gomock.Any(), sender, recipients, subject).
-				DoAndReturn(func(ctx context.Context, sender string, recipiants []string, subject string) error {
-					return nil
-				}).Times(1)
+			if c.returnCode == http.StatusCreated {
+				client1.EXPECT().ProviderName().Return("mock_client1").Times(1)
+				client1.EXPECT().
+					Send(gomock.Any(), sender, recipients, subject).
+					DoAndReturn(func(ctx context.Context, sender string, recipiants []string, subject string) error {
+						return nil
+					}).Times(1)
+			}
 			clients[0] = client1
 
 			b := &bytes.Buffer{}
 			json.NewEncoder(b).Encode(c.message)
 			req, err := http.NewRequest(c.method, c.path, b)
+			req.Header.Add("Authorization", c.token)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
@@ -75,7 +94,7 @@ func TestEmailControllerHandler(t *testing.T) {
 			handler.ServeHTTP(recorder, req)
 
 			if recorder.Code != c.returnCode {
-				t.Errorf("expected return code %d but got %d", recorder.Code, c.returnCode)
+				t.Errorf("expected return code %d but got %d", c.returnCode, recorder.Code)
 			}
 		})
 	}

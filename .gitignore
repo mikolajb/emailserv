@@ -1,2 +1,5 @@
 vendor
 bin
+.env
+coverage.out
+test-results.out

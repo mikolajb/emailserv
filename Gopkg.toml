@@ -25,6 +25,11 @@
 #   unused-packages = true
 
 
+[metadata.heroku]
+  root-package = "github.com/mikolajb/emailserv"
+  go-version = "1.10.2"
+  install = [ "./..." ]
+
 [prune]
   go-tests = true
   unused-packages = true

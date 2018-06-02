@@ -31,8 +31,9 @@ type Response struct {
 }
 
 type httpHandler struct {
-	logger       *zap.Logger
-	emailManager *emailmanager.EmailManager
+	logger             *zap.Logger
+	emailManager       *emailmanager.EmailManager
+	authorizationToken string
 }
 
 func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +42,12 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	if r.Header.Get("Authorization") != h.authorizationToken {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	ctx := r.Context()
 
 	jsonEncoder := json.NewEncoder(w)
@@ -83,7 +90,7 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Error:   true,
 		})
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	jsonEncoder.Encode(Response{Message: "sent"})
 }
 
