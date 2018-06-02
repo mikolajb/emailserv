@@ -26,16 +26,9 @@ func (sc *SendgridClient) ProviderName() string {
 }
 
 func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...EmailOption) error {
-	options := &emailOptions{}
-	for _, fn := range opts {
-		fn(options)
-	}
+	options := processOptions(opts...)
 	logger := sc.logger.With(
-		zap.String("sender", sender),
-		zap.Strings("recipients", recipients),
-		zap.Strings("cc", options.ccRecipients),
-		zap.Strings("bcc", options.bccRecipients),
-		zap.String("subject", subject),
+		loggerFields(sender, recipients, subject, options)...,
 	)
 
 	message := mail.NewV3Mail()

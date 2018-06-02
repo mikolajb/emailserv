@@ -17,7 +17,7 @@ type AmazonClient struct {
 	sesClient *ses.SES
 }
 
-func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) *AmazonClient {
+func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) (*AmazonClient, error) {
 	return &AmazonClient{
 		logger: logger,
 		sesClient: ses.New(session.Must(session.NewSession(
@@ -33,7 +33,7 @@ func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) *AmazonClient 
 				Region: aws.String("eu-west-1"),
 			},
 		))),
-	}
+	}, nil
 }
 
 func (ac *AmazonClient) ProviderName() string {
@@ -41,16 +41,9 @@ func (ac *AmazonClient) ProviderName() string {
 }
 
 func (ac *AmazonClient) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...EmailOption) error {
-	options := &emailOptions{}
-	for _, fn := range opts {
-		fn(options)
-	}
+	options := processOptions(opts...)
 	logger := ac.logger.With(
-		zap.String("sender", sender),
-		zap.Strings("recipients", recipients),
-		zap.Strings("cc", options.ccRecipients),
-		zap.Strings("bcc", options.bccRecipients),
-		zap.String("subject", subject),
+		loggerFields(sender, recipients, subject, options)...,
 	)
 
 	logger.Debug("sending a message")

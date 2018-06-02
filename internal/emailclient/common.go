@@ -1,6 +1,11 @@
 package emailclient
 
-import "context"
+import (
+	"context"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
 
 type EmailOption func(*emailOptions)
 
@@ -30,5 +35,24 @@ func WithBCCRecipient(recipient string) EmailOption {
 func WithBody(body string) EmailOption {
 	return func(o *emailOptions) {
 		o.body = body
+	}
+}
+
+func processOptions(opts ...EmailOption) *emailOptions {
+	var result emailOptions
+	for _, fn := range opts {
+		fn(&result)
+	}
+
+	return &result
+}
+
+func loggerFields(sender string, recipients []string, subject string, options *emailOptions) []zapcore.Field {
+	return []zapcore.Field{
+		zap.String("sender", sender),
+		zap.Strings("recipients", recipients),
+		zap.Strings("cc", options.ccRecipients),
+		zap.Strings("bcc", options.bccRecipients),
+		zap.String("subject", subject),
 	}
 }

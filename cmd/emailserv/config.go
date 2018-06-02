@@ -12,6 +12,7 @@ type configuration struct {
 	sendgrid struct {
 		key string
 	}
+	nop bool
 }
 
 func (c *configuration) init() {
@@ -24,6 +25,7 @@ func (c *configuration) init() {
 	flag.StringVar(&c.sendgrid.key, "sendgrid.key", "", "Sendgrid key.")
 	flag.IntVar(&c.clientTimeout, "client_timeout", 5000, "Acceptable client work time in milliseconds.")
 	flag.StringVar(&c.port, "port", "8080", "Port.")
+	flag.BoolVar(&c.nop, "nop", false, "Do not use any real client, just log messages.")
 }
 
 func (c *configuration) parse() {

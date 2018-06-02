@@ -28,24 +28,37 @@ func main() {
 	}
 	defer logger.Sync()
 
+	logger.Info("starting")
 	go func() {
 		sig := <-sigs
 		logger.Info("signal received, closing service", zap.Stringer("signal", sig))
 		done <- true
 	}()
 
-	ac := emailclient.NewAmazonClient(
-		logger.Named("aws"),
-		config.amazon.key,
-		config.amazon.secret,
-	)
-	sc, _ := emailclient.NewSendgridClient(
-		logger.Named("sendgrid"),
-		config.sendgrid.key,
-	)
+	var clients []emailclient.EmailClient
+	if config.nop {
+		clients = append(clients, emailclient.NewNopClient(logger.Named("nop")))
+	} else {
+		ac, err := emailclient.NewAmazonClient(
+			logger.Named("aws"),
+			config.amazon.key,
+			config.amazon.secret,
+		)
+		if err != nil {
+			logger.Fatal("cannot create amazon sns client", zap.Error(err))
+		}
+		sc, err := emailclient.NewSendgridClient(
+			logger.Named("sendgrid"),
+			config.sendgrid.key,
+		)
+		if err != nil {
+			logger.Fatal("cannot create sendgrid client", zap.Error(err))
+		}
+		clients = append(clients, ac, sc)
+	}
 	em := &emailmanager.EmailManager{
 		Logger:        logger.Named("email-manager"),
-		EmailClients:  []emailclient.EmailClient{sc, ac},
+		EmailClients:  clients,
 		ClientTimeout: time.Duration(config.clientTimeout) * time.Millisecond,
 	}
 
@@ -55,8 +68,6 @@ func main() {
 	}
 
 	http.Handle("/email", handler)
-
-	logger.Info("starting")
 
 	listener, err := net.Listen("tcp", ":"+config.port)
 	if err != nil {
@@ -69,6 +80,7 @@ func main() {
 		}
 	}()
 
+	logger.Info("listening", zap.Stringer("address", listener.Addr()))
 	<-done
 	err = listener.Close()
 	if err != nil {

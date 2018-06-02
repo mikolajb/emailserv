@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 
@@ -34,6 +35,7 @@ type httpHandler struct {
 
 func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
+		h.logger.Debug("received request with a wrong method", zap.String("method", r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -78,20 +80,34 @@ func validate(message *Message) []*validationError {
 			Error: "not a valid email",
 		})
 	}
-	for _, r := range message.Recipients {
-		if !re.MatchString(r) {
-			errors = append(errors, &validationError{
-				Field: "recipients",
-				Error: "contains an invalid email address",
-			})
-		}
+
+	if len(message.Recipients) < 1 &&
+		len(message.CCRecipients) < 1 &&
+		len(message.BCCRecipients) < 1 {
+		errors = append(errors, &validationError{
+			Field: "recipients",
+			Error: "at least one recipient has to be present",
+		})
 	}
-	for _, r := range message.CCRecipients {
-		if !re.MatchString(r) {
-			errors = append(errors, &validationError{
-				Field: "cc_recipients",
-				Error: "contains an invalid email address",
-			})
+
+	addresses := map[string][]string{
+		"recipient":     message.Recipients,
+		"cc_recipient":  message.CCRecipients,
+		"bcc_recipient": message.BCCRecipients,
+	}
+
+	for addrType, addresses := range addresses {
+		for i, r := range addresses {
+			if !re.MatchString(r) {
+				errors = append(errors, &validationError{
+					Field: fmt.Sprintf(
+						"%s[%d]",
+						addrType,
+						i,
+					),
+					Error: "invalid email address",
+				})
+			}
 		}
 	}
 
