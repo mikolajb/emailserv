@@ -8,6 +8,7 @@ import (
 
 	"github.com/mikolajb/emailserv/internal/emailmanager"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -24,8 +25,9 @@ type Message struct {
 }
 
 type Response struct {
-	Message string `json:"message"`
-	Error   bool
+	Message          string             `json:"message,omitempty"`
+	ValidationErrors []*validationError `json:"validation_errors,omitempty"`
+	Error            bool               `json:"error,omitempty"`
 }
 
 type httpHandler struct {
@@ -41,32 +43,57 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 
+	jsonEncoder := json.NewEncoder(w)
+	w.Header().Set("Content-Type", "application/json")
 	var message Message
 
 	err := json.NewDecoder(r.Body).Decode(&message)
 	if err != nil {
-		h.logger.Error("error while decoding message", zap.Error(err))
+		h.logger.Debug("error while decoding message", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		jsonEncoder.Encode(Response{
+			Message: "Invalid JSON format",
+			Error:   true,
+		})
+		return
 	}
-
-	response := &Response{}
 
 	validationErrors := validate(&message)
 	if len(validationErrors) > 0 {
-		response.Error = true
+		var validationFields []zapcore.Field
+		for _, ve := range validationErrors {
+			validationFields = append(validationFields, zap.Stringer("validation_error", ve))
+		}
+		h.logger.Debug("invalid message", validationFields...)
 		w.WriteHeader(http.StatusBadRequest)
+		jsonEncoder.Encode(Response{
+			Message:          "Request not valid",
+			ValidationErrors: validationErrors,
+			Error:            true,
+		})
+		return
 	}
 
 	err = h.emailManager.Send(ctx, message.Sender, message.Recipients, message.Subject)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		h.logger.Error("send error", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		jsonEncoder.Encode(Response{
+			Message: "Internal server error",
+			Error:   true,
+		})
 	}
 	w.WriteHeader(http.StatusOK)
+	jsonEncoder.Encode(Response{Message: "sent"})
 }
 
 type validationError struct {
 	Field string `json:"field"`
 	Error string `json:"error"`
+}
+
+func (ve *validationError) String() string {
+	return fmt.Sprintf("field %s is not valid: %s", ve.Field, ve.Error)
 }
 
 func validate(message *Message) []*validationError {
