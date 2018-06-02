@@ -54,15 +54,12 @@ func (ac *AmazonClient) Send(ctx context.Context, sender string, recipients []st
 	)
 
 	logger.Debug("sending a message")
-	toAddresses := aws.StringSlice(recipients)
-	ccAddresses := aws.StringSlice(options.ccRecipients)
-	bccAddresses := aws.StringSlice(options.bccRecipients)
 
 	input := &ses.SendEmailInput{
 		Destination: &ses.Destination{
-			ToAddresses:  toAddresses,
-			CcAddresses:  ccAddresses,
-			BccAddresses: bccAddresses,
+			ToAddresses:  aws.StringSlice(recipients),
+			CcAddresses:  aws.StringSlice(options.ccRecipients),
+			BccAddresses: aws.StringSlice(options.bccRecipients),
 		},
 		Message: &ses.Message{
 			Body: &ses.Body{
@@ -84,27 +81,27 @@ func (ac *AmazonClient) Send(ctx context.Context, sender string, recipients []st
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case ses.ErrCodeMessageRejected:
-				fmt.Println(ses.ErrCodeMessageRejected, aerr.Error())
+				logger.Error("message cannot be sent", zap.Error(aerr))
 			case ses.ErrCodeMailFromDomainNotVerifiedException:
-				fmt.Println(ses.ErrCodeMailFromDomainNotVerifiedException, aerr.Error())
+				logger.Error("sender's domain is not verified", zap.Error(aerr))
 			case ses.ErrCodeConfigurationSetDoesNotExistException:
-				fmt.Println(ses.ErrCodeConfigurationSetDoesNotExistException, aerr.Error())
+				logger.Error("configuration set does not exist", zap.Error(aerr))
 			case ses.ErrCodeConfigurationSetSendingPausedException:
-				fmt.Println(ses.ErrCodeConfigurationSetSendingPausedException, aerr.Error())
+				logger.Error("sending email is paused for a given configuration", zap.Error(aerr))
 			case ses.ErrCodeAccountSendingPausedException:
-				fmt.Println(ses.ErrCodeAccountSendingPausedException, aerr.Error())
+				logger.Error("sending email is paused for a given SNS account", zap.Error(aerr))
 			default:
-				logger.Error("aws error", zap.Error(aerr))
+				logger.Error("unknown aws error", zap.Error(aerr))
 			}
 		} else {
 			// Print the error, cast err to awserr.Error to get the Code and
 			// Message from an error.
 			logger.Error("unknown error", zap.Error(err))
 		}
-		return nil
+		return fmt.Errorf("message cannot be sent: %s", err.Error())
 	}
 
-	fmt.Println(result)
+	logger.Debug("message is sent", zap.String("aws_message_id", *result.MessageId))
 
 	return nil
 }

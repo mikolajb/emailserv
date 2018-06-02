@@ -2,7 +2,7 @@ package emailclient
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	sendgrid "github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -38,10 +38,6 @@ func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []
 		zap.String("subject", subject),
 	)
 
-	if len(recipients) == 0 {
-		return errors.New("no recipients")
-	}
-
 	message := mail.NewV3Mail()
 	message.From = mail.NewEmail("", sender)
 	message.Subject = subject
@@ -60,7 +56,7 @@ func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []
 	response, err := sc.sendgridClient.Send(message)
 	if err != nil {
 		logger.Error("sending error", zap.Error(err))
-		return err
+		return fmt.Errorf("sending error: %s", err.Error())
 	}
 	logger.Debug("request sent",
 		zap.Int("status_code", response.StatusCode),
@@ -68,7 +64,7 @@ func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []
 		zap.Reflect("headers", response.Headers),
 	)
 	if response.StatusCode/200 != 1 {
-		return errors.New("unsuccesfull request")
+		return fmt.Errorf("unsuccessful request, status code: %d", response.StatusCode)
 	}
 
 	return nil
