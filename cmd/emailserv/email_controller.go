@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/mikolajb/emailserv/internal/emailclient"
 	"github.com/mikolajb/emailserv/internal/emailmanager"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -81,7 +82,15 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.emailManager.Send(ctx, message.Sender, message.Recipients, message.Subject)
+	err = h.emailManager.Send(
+		ctx,
+		message.Sender,
+		message.Recipients,
+		message.Subject,
+		emailclient.WithBody(message.Body),
+		emailclient.WithCCRecipients(message.CCRecipients),
+		emailclient.WithBCCRecipients(message.BCCRecipients),
+	)
 	if err != nil {
 		h.logger.Error("send error", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -89,9 +98,9 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Message: "Internal server error",
 			Error:   true,
 		})
+		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	jsonEncoder.Encode(Response{Message: "sent"})
 }
 
 type validationError struct {

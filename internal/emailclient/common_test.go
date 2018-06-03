@@ -32,40 +32,57 @@ func Test_processOptions(t *testing.T) {
 
 	for hint, c := range cases {
 		t.Run(hint, func(t *testing.T) {
-			var options []EmailOption
-			for _, r := range c.ccRecipients {
-				options = append(options, WithCCRecipient(r))
-			}
-			for _, r := range c.bccRecipients {
-				options = append(options, WithBCCRecipient(r))
-			}
-			options = append(options, WithBody(c.body))
-
-			result := processOptions(options...)
-
-			if len(c.expected.ccRecipients) == len(result.ccRecipients) {
-				for i := range c.expected.ccRecipients {
-					if c.expected.ccRecipients[i] != result.ccRecipients[i] {
-						t.Error("CC recipients do not match")
-					}
+			t.Run("single-recipients", func(t *testing.T) {
+				var options []EmailOption
+				for _, r := range c.ccRecipients {
+					options = append(options, WithCCRecipient(r))
 				}
-			} else {
+				for _, r := range c.bccRecipients {
+					options = append(options, WithBCCRecipient(r))
+				}
+				options = append(options, WithBody(c.body))
+
+				result := processOptions(options...)
+
+				compareOptions(t, c.expected, result)
+			})
+			t.Run("recipients-as-groups", func(t *testing.T) {
+				result := processOptions(
+					WithCCRecipients(c.ccRecipients),
+					WithBCCRecipients(c.bccRecipients),
+					WithBody(c.body),
+				)
+
+				compareOptions(t, c.expected, result)
+			})
+		})
+	}
+}
+
+func compareOptions(t *testing.T, o1, o2 *emailOptions) {
+	t.Helper()
+
+	if len(o1.ccRecipients) == len(o2.ccRecipients) {
+		for i := range o1.ccRecipients {
+			if o1.ccRecipients[i] != o2.ccRecipients[i] {
 				t.Error("CC recipients do not match")
 			}
+		}
+	} else {
+		t.Error("CC recipients do not match")
+	}
 
-			if len(c.expected.bccRecipients) == len(result.bccRecipients) {
-				for i := range c.expected.bccRecipients {
-					if c.expected.bccRecipients[i] != result.bccRecipients[i] {
-						t.Error("BCC recipients do not match")
-					}
-				}
-			} else {
+	if len(o1.bccRecipients) == len(o2.bccRecipients) {
+		for i := range o1.bccRecipients {
+			if o1.bccRecipients[i] != o2.bccRecipients[i] {
 				t.Error("BCC recipients do not match")
 			}
+		}
+	} else {
+		t.Error("BCC recipients do not match")
+	}
 
-			if c.expected.body != result.body {
-				t.Errorf("body does not match")
-			}
-		})
+	if o1.body != o2.body {
+		t.Errorf("body does not match")
 	}
 }

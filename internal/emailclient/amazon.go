@@ -23,7 +23,7 @@ func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) (*AmazonClient
 		sesClient: ses.New(session.Must(session.NewSession(
 			&aws.Config{
 				Logger: aws.LoggerFunc(func(args ...interface{}) {
-					logger.Debug("abc", zap.Reflect("x", args))
+					logger.Debug("abc", zap.Any("values", args))
 				}),
 				Credentials: credentials.NewStaticCredentials(
 					keyID,

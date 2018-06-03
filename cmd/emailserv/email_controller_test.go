@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -19,51 +21,60 @@ func TestEmailControllerHandler(t *testing.T) {
 	sender := "sender@example.com"
 	recipients := []string{"recipient@example.com"}
 	subject := "subject"
-
-	clients := []emailclient.EmailClient{nil}
-
-	em := &emailmanager.EmailManager{
-		Logger:        zaptest.NewLogger(t),
-		EmailClients:  clients,
-		ClientTimeout: 100 * time.Millisecond,
-	}
-
+	body := "some body"
 	token := "abc"
-
-	handler := httpHandler{
-		logger:             zaptest.NewLogger(t),
-		emailManager:       em,
-		authorizationToken: token,
-	}
+	bccRecipients := []string{"def@abc.com"}
+	message := &bytes.Buffer{}
+	json.NewEncoder(message).Encode(&Message{
+		Sender:        sender,
+		Recipients:    recipients,
+		Subject:       subject,
+		Body:          body,
+		BCCRecipients: bccRecipients,
+	})
+	invalidMessage := &bytes.Buffer{}
+	json.NewEncoder(invalidMessage).Encode(&Message{
+		Sender:     "abc",
+		Recipients: []string{"def"},
+	})
 
 	cases := map[string]struct {
-		message    *Message
-		method     string
-		path       string
-		returnCode int
-		token      string
+		message       *bytes.Buffer
+		method        string
+		returnCode    int
+		returnMessage string
+		token         string
+		clientDelay   time.Duration
+		clientError   error
 	}{
 		"ok": {
-			message: &Message{
-				Sender:     sender,
-				Recipients: recipients,
-				Subject:    subject,
-			},
-			method:     "POST",
-			path:       "/email",
 			returnCode: http.StatusCreated,
-			token:      token,
+		},
+		"invalid-json": {
+			message:       bytes.NewBufferString("abc"),
+			returnCode:    http.StatusBadRequest,
+			returnMessage: "Invalid JSON format",
+		},
+		"invalid-message": {
+			message:       invalidMessage,
+			returnCode:    http.StatusBadRequest,
+			returnMessage: "Request not valid",
+		},
+		"bad-method": {
+			method:     "GET",
+			returnCode: http.StatusMethodNotAllowed,
 		},
 		"unauthorized": {
-			message: &Message{
-				Sender:     sender,
-				Recipients: recipients,
-				Subject:    subject,
-			},
-			method:     "POST",
-			path:       "/email",
 			returnCode: http.StatusUnauthorized,
 			token:      "xyz",
+		},
+		"client-timeout": {
+			returnCode:  http.StatusInternalServerError,
+			clientDelay: time.Second,
+		},
+		"client-error": {
+			returnCode:  http.StatusInternalServerError,
+			clientError: errors.New("some error"),
 		},
 	}
 
@@ -73,28 +84,84 @@ func TestEmailControllerHandler(t *testing.T) {
 			defer mockCtrl.Finish()
 
 			client1 := emailclient.NewMockEmailClient(mockCtrl)
-			if c.returnCode == http.StatusCreated {
+			if c.returnCode == http.StatusCreated || c.returnCode == http.StatusInternalServerError {
 				client1.EXPECT().ProviderName().Return("mock_client1").Times(1)
 				client1.EXPECT().
-					Send(gomock.Any(), sender, recipients, subject).
-					DoAndReturn(func(ctx context.Context, sender string, recipiants []string, subject string) error {
+					Send(gomock.Any(), sender, recipients, subject, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, senderX string, recipientsX []string, subjectX string, opts ...emailclient.EmailOption) error {
+						if sender != senderX {
+							t.Errorf("expected '%s' sender but got '%s'", sender, senderX)
+						}
+						if !reflect.DeepEqual(recipients, recipientsX) {
+							t.Errorf("expected '%v' recipients but got '%v'", recipients, recipientsX)
+						}
+						if subject != subjectX {
+							t.Errorf("expected '%s' subject but got '%s'", subject, subjectX)
+						}
+						select {
+						case <-time.After(c.clientDelay):
+							return c.clientError
+						case <-ctx.Done():
+							// sometime context is too fast
+							<-time.After(10 * time.Millisecond)
+						}
 						return nil
 					}).Times(1)
 			}
-			clients[0] = client1
 
-			b := &bytes.Buffer{}
-			json.NewEncoder(b).Encode(c.message)
-			req, err := http.NewRequest(c.method, c.path, b)
-			req.Header.Add("Authorization", c.token)
+			em := &emailmanager.EmailManager{
+				Logger:        zaptest.NewLogger(t),
+				EmailClients:  []emailclient.EmailClient{client1},
+				ClientTimeout: 100 * time.Millisecond,
+			}
+			handler := httpHandler{
+				logger:             zaptest.NewLogger(t),
+				emailManager:       em,
+				authorizationToken: token,
+			}
+
+			method := "POST"
+			if c.method != "" {
+				method = c.method
+			}
+
+			requestMessage := c.message
+			if requestMessage == nil {
+				requestMessage = bytes.NewBufferString(message.String())
+			}
+			req, err := http.NewRequest(method, "/email", requestMessage)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if c.token == "" {
+				req.Header.Add("Authorization", token)
+			} else {
+				req.Header.Add("Authorization", c.token)
 			}
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, req)
 
 			if recorder.Code != c.returnCode {
 				t.Errorf("expected return code %d but got %d", c.returnCode, recorder.Code)
+			}
+
+			if c.returnMessage != "" {
+				if recorder.Body != nil {
+					var response Response
+					err := json.NewDecoder(recorder.Body).Decode(&response)
+					if err != nil {
+						t.Errorf("cannot decode response body")
+					}
+					if response.Message != c.returnMessage {
+						t.Errorf(
+							"expected '%s' in a response message, got '%s'",
+							c.returnMessage,
+							response.Message,
+						)
+					}
+				} else {
+					t.Errorf("expected body in a response")
+				}
 			}
 		})
 	}

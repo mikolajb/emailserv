@@ -26,9 +26,21 @@ func WithCCRecipient(recipient string) EmailOption {
 	}
 }
 
+func WithCCRecipients(recipients []string) EmailOption {
+	return func(o *emailOptions) {
+		o.ccRecipients = recipients
+	}
+}
+
 func WithBCCRecipient(recipient string) EmailOption {
 	return func(o *emailOptions) {
 		o.bccRecipients = append(o.bccRecipients, recipient)
+	}
+}
+
+func WithBCCRecipients(recipients []string) EmailOption {
+	return func(o *emailOptions) {
+		o.bccRecipients = recipients
 	}
 }
 
