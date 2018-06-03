@@ -32,17 +32,22 @@ func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []
 	)
 
 	message := mail.NewV3Mail()
-	message.From = mail.NewEmail("", sender)
+	message.SetFrom(mail.NewEmail("", sender))
 	message.Subject = subject
-	message.AddContent(mail.NewContent("plain/text", options.body))
+	message.AddContent(
+		mail.NewContent("text/plain", options.body),
+		mail.NewContent("text/html", options.body),
+	)
 
 	personalization := mail.NewPersonalization()
-	personalization.AddTos(stringsToEmails(recipients...)...)
-	if len(options.ccRecipients) > 0 {
-		personalization.AddCCs(stringsToEmails(options.ccRecipients...)...)
+	for _, r := range recipients {
+		personalization.AddTos(mail.NewEmail("", r))
 	}
-	if len(options.bccRecipients) > 0 {
-		personalization.AddBCCs(stringsToEmails(options.bccRecipients...)...)
+	for _, r := range options.ccRecipients {
+		personalization.AddCCs(mail.NewEmail("", r))
+	}
+	for _, r := range options.bccRecipients {
+		personalization.AddBCCs(mail.NewEmail("", r))
 	}
 	message.AddPersonalizations(personalization)
 
@@ -61,14 +66,4 @@ func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []
 	}
 
 	return nil
-}
-
-func stringsToEmails(addresses ...string) []*mail.Email {
-	emails := make([]*mail.Email, len(addresses))
-	for _, e := range addresses {
-		emails = append(emails, mail.NewEmail(
-			"", e,
-		))
-	}
-	return emails
 }

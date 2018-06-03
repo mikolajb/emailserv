@@ -16,3 +16,6 @@ gen:
 
 build:
 	CGO_ENABLED=0 GOOS=linux go build -ldflags "${LDFLAGS}" -a -o bin/${SERVICE} ${PACKAGE}/cmd/${SERVICE}
+
+install:
+	go install -ldflags "${LDFLAGS}" ${PACKAGE}/cmd/${SERVICE}
