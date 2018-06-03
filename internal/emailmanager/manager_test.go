@@ -53,7 +53,10 @@ func TestEmailManager_Send(t *testing.T) {
 			secondClientCall.After(firstClientCall)
 			secondClientCall.DoAndReturn(func(ctx context.Context, sender string, recipients []string, subject string) error {
 				if c.delay != 0 {
-					time.Sleep(c.delay)
+					select {
+					case <-time.After(c.delay):
+					case <-ctx.Done():
+					}
 				}
 				return nil
 			})
