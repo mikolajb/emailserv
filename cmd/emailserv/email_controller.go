@@ -16,19 +16,53 @@ const (
 	emailRegexp = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 )
 
+// Message is an incoming message.
 type Message struct {
-	Sender        string   `json:"sender"`
-	Recipients    []string `json:"recipients"`
-	CCRecipients  []string `json:"cc_recipients"`
+	// Sender is email's "from" attribute.
+	Sender string `json:"sender"`
+
+	// Recipients are email's "to" attributes.
+	Recipients []string `json:"recipients"`
+
+	// CCRecipients...
+	CCRecipients []string `json:"cc_recipients"`
+
+	// BCCRecipients...
 	BCCRecipients []string `json:"bcc_recipients"`
-	Subject       string   `json:"subject"`
-	Body          string   `json:"body"`
+
+	// Subject is email's subject
+	Subject string `json:"subject"`
+
+	// Body is email's content
+	Body string `json:"body"`
 }
 
+// Response holds service's response message.
 type Response struct {
-	Message          string             `json:"message,omitempty"`
-	ValidationErrors []*validationError `json:"validation_errors,omitempty"`
-	Error            bool               `json:"error,omitempty"`
+	// Message is a short information about a status.
+	Message string `json:"message,omitempty"`
+
+	// ValidationErrors is a list request's validation errors.
+	ValidationErrors []*ValidationError `json:"validation_errors,omitempty"`
+
+	// Error specifies if error occured.
+	Error bool `json:"error,omitempty"`
+}
+
+// ValidationErrors holds an error of a particular field from the request
+type ValidationError struct {
+	// Field is a name of a field, e.g. "sender"
+	// in case there is a list of fields, it will also contain an index,
+	// e.g., recipients[1]
+	Field string `json:"field"`
+
+	// Error is a message explaining a validation error
+	Error string `json:"error"`
+}
+
+// String builds a readable text from a ValidationError
+func (ve *ValidationError) String() string {
+	return fmt.Sprintf("field %s is not valid: %s", ve.Field, ve.Error)
 }
 
 type httpHandler struct {
@@ -37,6 +71,10 @@ type httpHandler struct {
 	authorizationToken string
 }
 
+// ServeHTTP is a main controller function
+// it could be separated into two
+// - one holding technical aspects of it
+// - one holding application logic
 func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		h.logger.Debug("received request with a wrong method", zap.String("method", r.Method))
@@ -103,22 +141,13 @@ func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-type validationError struct {
-	Field string `json:"field"`
-	Error string `json:"error"`
-}
-
-func (ve *validationError) String() string {
-	return fmt.Sprintf("field %s is not valid: %s", ve.Field, ve.Error)
-}
-
-func validate(message *Message) []*validationError {
-	errors := []*validationError{}
+func validate(message *Message) []*ValidationError {
+	errors := []*ValidationError{}
 
 	re := regexp.MustCompile(emailRegexp)
 
 	if !re.MatchString(message.Sender) {
-		errors = append(errors, &validationError{
+		errors = append(errors, &ValidationError{
 			Field: "sender",
 			Error: "not a valid email",
 		})
@@ -127,7 +156,7 @@ func validate(message *Message) []*validationError {
 	if len(message.Recipients) < 1 &&
 		len(message.CCRecipients) < 1 &&
 		len(message.BCCRecipients) < 1 {
-		errors = append(errors, &validationError{
+		errors = append(errors, &ValidationError{
 			Field: "recipients",
 			Error: "at least one recipient has to be present",
 		})
@@ -142,7 +171,7 @@ func validate(message *Message) []*validationError {
 	for addrType, addresses := range addresses {
 		for i, r := range addresses {
 			if !re.MatchString(r) {
-				errors = append(errors, &validationError{
+				errors = append(errors, &ValidationError{
 					Field: fmt.Sprintf(
 						"%s[%d]",
 						addrType,

@@ -9,11 +9,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// SendgridClient holds a state of a client
 type SendgridClient struct {
 	logger         *zap.Logger
 	sendgridClient *sendgrid.Client
 }
 
+// NewSendgridClient creates a new SendgridClient
 func NewSendgridClient(logger *zap.Logger, key string) (*SendgridClient, error) {
 	return &SendgridClient{
 		logger:         logger,
@@ -21,10 +23,12 @@ func NewSendgridClient(logger *zap.Logger, key string) (*SendgridClient, error) 
 	}, nil
 }
 
+// ProviderName returns "sendgrid"
 func (sc *SendgridClient) ProviderName() string {
 	return "sendgrid"
 }
 
+// Send sends an email using SendGrid service
 func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...EmailOption) error {
 	options := processOptions(opts...)
 	logger := sc.logger.With(
@@ -34,6 +38,10 @@ func (sc *SendgridClient) Send(ctx context.Context, sender string, recipients []
 	message := mail.NewV3Mail()
 	message.SetFrom(mail.NewEmail("", sender))
 	message.Subject = subject
+	if options.body == "" {
+		// snedgrid requires content to be at lest one character long
+		options.body = " "
+	}
 	message.AddContent(
 		mail.NewContent("text/plain", options.body),
 		mail.NewContent("text/html", options.body),

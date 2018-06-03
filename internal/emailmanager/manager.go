@@ -9,12 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// EmailManager holds a state of an email manager
+// It encapsulates multiple email clients
 type EmailManager struct {
 	Logger        *zap.Logger
 	EmailClients  []emailclient.EmailClient
 	ClientTimeout time.Duration
 }
 
+// Send sends an email using one of the available clients
 func (em *EmailManager) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...emailclient.EmailOption) error {
 	logger := em.Logger.With(
 		zap.String("sender", sender),

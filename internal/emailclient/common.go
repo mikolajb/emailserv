@@ -1,3 +1,4 @@
+// Package specifies a common interface for all email clients, e.g. amazon sns,
 package emailclient
 
 import (
@@ -7,8 +8,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// EmailOption...
 type EmailOption func(*emailOptions)
 
+// EmailClient is an common interface used by all email clients
 type EmailClient interface {
 	Send(context.Context, string, []string, string, ...EmailOption) error
 	ProviderName() string
@@ -20,30 +23,35 @@ type emailOptions struct {
 	body          string
 }
 
+// WithCCRecipient adds a cc recipient to the list of options
 func WithCCRecipient(recipient string) EmailOption {
 	return func(o *emailOptions) {
 		o.ccRecipients = append(o.ccRecipients, recipient)
 	}
 }
 
+// WithCCRecipients sets cc recipients
 func WithCCRecipients(recipients []string) EmailOption {
 	return func(o *emailOptions) {
 		o.ccRecipients = recipients
 	}
 }
 
+// WithBCCRecipient adds a bcc recipient to the list of options
 func WithBCCRecipient(recipient string) EmailOption {
 	return func(o *emailOptions) {
 		o.bccRecipients = append(o.bccRecipients, recipient)
 	}
 }
 
+// WithBCCRecipients sets cc recipients
 func WithBCCRecipients(recipients []string) EmailOption {
 	return func(o *emailOptions) {
 		o.bccRecipients = recipients
 	}
 }
 
+// WithBody sets body in email options
 func WithBody(body string) EmailOption {
 	return func(o *emailOptions) {
 		o.body = body

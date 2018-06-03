@@ -12,11 +12,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// AmazonClient holds a state of a client
 type AmazonClient struct {
 	logger    *zap.Logger
 	sesClient *ses.SES
 }
 
+// NewAmazonClient returns a new amazon SNS client for given credentials
 func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) (*AmazonClient, error) {
 	return &AmazonClient{
 		logger: logger,
@@ -36,10 +38,12 @@ func NewAmazonClient(logger *zap.Logger, keyID, secretKey string) (*AmazonClient
 	}, nil
 }
 
+// ProviderName returns "aws"
 func (ac *AmazonClient) ProviderName() string {
 	return "aws"
 }
 
+// Send sends an email using Amazon SNS
 func (ac *AmazonClient) Send(ctx context.Context, sender string, recipients []string, subject string, opts ...EmailOption) error {
 	options := processOptions(opts...)
 	logger := ac.logger.With(
